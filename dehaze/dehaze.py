@@ -38,7 +38,7 @@ def dehaze(src, size, w=0.95):
     return res
 
 
-img = cv2.imread("/Users/kaneiki/Desktop/DeepLearning/picture/haze2.png")
+img = cv2.imread("/Users/kaneiki/Desktop/Image_Processing/imgs/haze1.jpg")
 img_ans = dehaze(img, 3, 0.8)
 
 show = np.hstack([img, img_ans])

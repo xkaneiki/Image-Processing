@@ -48,122 +48,102 @@ class SeamCarving:
                     dh1] = src[i-dw0:i+dw1, j-dh0:j+dh1]
                 res[i][j] = np.sum(tmp*filter_)
         return res
-    # def get_M_dirt(self,e):
-    #     M=e.copy()
-    #     w,h=e.shape
-    #     d=np.ones((w,h,2),dtype=float)
-    #     d[:,:,1]=e.copy()
-    #     v1=np.zeros([1,h],dtype=np.float)
-        
-    #     for i in range(1,w):
-    #         v1=M[i-1]+M[i]
-    #         v2=v1.copy()   
 
-    
-    def carve_row(self, src):
-        e = self.energy(src)
+    def get_M_dirt(self, e):
         M = e.copy()
         w, h = e.shape
-        dirt = np.zeros((w, h), dtype=np.int)
         for i in range(1, w):
-            for j in range(h):
-                t = float('inf')
-                for _ in range(3):
-                    if i+self.dx[_][0] >= 0 and i+self.dx[_][0] < w and j+self.dx[_][1] >= 0 and j+self.dx[_][1] < h:
-                        p = M[i+self.dx[_][0]][j+self.dx[_][1]]+e[i][j]
-                        if p < t:
-                            t = p
-                            dirt[i][j] = _
-                M[i][j] = t
+            v1 = M[i-1]+M[i]
+
+            v2 = np.zeros(h, np.float)
+            v2[h-1] = 987654321
+            v2[0:h-1] = M[i-1, 1:h]
+            
+            v3 = np.zeros(h, np.float)
+            v3[0] = 987654321
+            v3[1:h] =M[i-1, 0: h-1]
+            
+            M[i] = np.min(np.stack([v1, v2, v3], axis=1), axis=1)+M[i-1]
+
+        return M
+
+    def carve_row(self, src):
+        pt = time.time()
+
+        e = self.energy(src)
+
+        nt = time.time()
+        print(nt-pt, "s")
+        pt = nt
+
+        # M = e.copy()
+        w, h = e.shape
+        # dirt = np.zeros((w, h), dtype=np.int)
+        # for i in range(1, w):
+        #     for j in range(h):
+        #         t = float('inf')
+        #         for _ in range(3):
+        #             if i+self.dx[_][0] >= 0 and i+self.dx[_][0] < w and j+self.dx[_][1] >= 0 and j+self.dx[_][1] < h:
+        #                 p = M[i+self.dx[_][0]][j+self.dx[_][1]]+e[i][j]
+        #                 if p < t:
+        #                     t = p
+        #                     dirt[i][j] = _
+        #         M[i][j] = t
+        M=self.get_M_dirt(e)
         pos = np.argmin(M[w-1])
-        print('pos', pos)
+        # print('pos', pos)
+
+        nt = time.time()
+        print(nt-pt, "s")
+        pt = nt
 
         B = np.ones(e.shape, dtype=np.bool)
 
         # print(dir)
         for i in reversed(range(w)):
             B[i][pos] = False
-            pos = pos+self.dx[dirt[i][pos]][1]
+            if i == 0:
+                break
+            if pos-1 >= 0 and M[i-1][pos-1] == M[i][pos]-e[i][pos]:
+                pos = pos-1
+            elif pos+1 < h and M[i-1][pos+1] == M[i][pos]-e[i][pos]:
+                pos = pos+1
 
         B = np.stack([B]*3, axis=2)
 
         img = src[B].reshape((w, h-1, 3))
 
+        nt = time.time()
+        print(nt-pt, "s")
+        pt = nt
+
         return img
 
-    def carve_col(self,src):
-        src1=np.stack([
-            src[:,:,0].T,
-            src[:,:,1].T,
-            src[:,:,2].T
-        ],axis=2)
-        img=self.carve_row(src1)
-        img=np.stack([
-            img[:,:,0].T,
-            img[:,:,1].T,
-            img[:,:,2].T
-        ],axis=2)
-        return img    
-    # def _carve_col(self, src):
-    #     pt = time.time()
-    #     e = self.energy(src)
-
-    #     nt = time.time()
-    #     print(nt-pt)
-    #     pt = nt
-
-    #     M = e.copy()
-    #     w, h = e.shape
-    #     dirt = np.zeros((w, h), dtype=np.int)
-
-    #     for j in range(1, h):
-    #         for i in range(w):
-    #             t = 987654321
-    #             for _ in range(3):
-    #                 if i+self.dy[_][0] >= 0 and i+self.dy[_][0] < w and j+self.dy[_][1] >= 0 and j+self.dy[_][1] < h:
-    #                     p = M[i+self.dy[_][0]][j+self.dy[_][1]]+e[i][j]
-    #                     if p < t:
-    #                         t = p
-    #                         dirt[i][j] = _
-    #             M[i][j] = t
-
-    #     pos = np.argmin(M[:, h-1], axis=0)
-    #     print('pos', pos)
-
-    #     nt = time.time()
-    #     print(nt-pt)
-    #     pt = nt
-
-    #     B = np.ones(e.shape, dtype=np.bool)
-
-    #     for j in reversed(range(h)):
-    #         print("pos",pos)
-    #         B[pos][j] = False
-    #         pos = pos+self.dy[dirt[pos][j]][0]
-
-    #     B = np.stack([B]*3, axis=2)
-    
-    #error
-    #     img = src[B].reshape((w-1, h, 3)) 
-    #error
-        
-    #     nt = time.time()
-    #     print(nt-pt)
-    #     pt = nt
-
-    #     return img
+    def carve_col(self, src):
+        src1 = np.stack([
+            src[:, :, 0].T,
+            src[:, :, 1].T,
+            src[:, :, 2].T
+        ], axis=2)
+        img = self.carve_row(src1)
+        img = np.stack([
+            img[:, :, 0].T,
+            img[:, :, 1].T,
+            img[:, :, 2].T
+        ], axis=2)
+        return img
 
     def carve(self, src, len, Axis):
         img = np.array(src, dtype=np.float)
-        print(img)
+        # print(img)
         if Axis == 'x':
             for _ in range(len):
-                print(_)
+                # print(_)
                 img = self.carve_row(img)
 
         elif Axis == 'y':
             for _ in range(len):
-                print(_)
+                # print(_)
                 img = self.carve_col(img)
 
         return img.astype(np.uint8)
@@ -198,14 +178,22 @@ class SeamCarving:
 if __name__ == "__main__":
     img = cv2.imread(
         "/Users/kaneiki/Desktop/Image_Processing/imgs/carving.png")
-    cv2.imshow("raw", img)
+    # cv2.imshow("raw", np.array(img))
+    # src=np.array(img,np.uint8)
     print(img.shape)
 
     test = SeamCarving()
-    # res = test.carve(img, 100, 'x')
-    res = test.carve(img, 10, 'y')
-    print(res.shape)
-    cv2.imshow("res", res)
 
+    stat=time.time()
+    res = test.carve(img, 200, 'y')
+    print(time.time()-stat,"s")
+    
+    # res = test.carve(img, 10, 'y')
+    print(res.shape)
+    # cv2.imshow("res", res)
+
+    t = np.vstack([res, img])
+    print(t.shape)
+    cv2.imshow("windows", t)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
