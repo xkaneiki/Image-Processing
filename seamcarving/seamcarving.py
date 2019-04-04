@@ -49,47 +49,48 @@ class SeamCarving:
                 res[i][j] = np.sum(tmp*filter_)
         return res
 
-    def get_M_dirt(self, e):
+    def get_M(self, e):
         M = e.copy()
         w, h = e.shape
+        v1 = np.zeros(h,np.float)
+        v1[0]=float('inf')
+        v2 = np.zeros(h,np.float)
+        v2[h-1]=float('inf')
         for i in range(1, w):
-            v1 = M[i-1]+M[i]
+            v1[1:h]  = M[i-1, 0:h-1]
+            v2[0:h-1] = M[i-1, 1: h]
+            M[i] = np.min(np.stack([v1, v2, M[i-1]], axis=1), axis=1)+M[i]
 
-            v2 = np.zeros(h, np.float)
-            v2[h-1] = 987654321
-            v2[0:h-1] = M[i-1, 1:h]
-            
-            v3 = np.zeros(h, np.float)
-            v3[0] = 987654321
-            v3[1:h] =M[i-1, 0: h-1]
-            
-            M[i] = np.min(np.stack([v1, v2, v3], axis=1), axis=1)+M[i-1]
+        return M
 
+    def get_M_(self, e):
+        M = e.copy()
+        w, h = e.shape
+        dirt = np.zeros((w, h), dtype=np.int)
+        for i in range(1, w):
+            for j in range(h):
+                t = float('inf')
+                for _ in range(3):
+                    if i+self.dx[_][0] >= 0 and i+self.dx[_][0] < w and j+self.dx[_][1] >= 0 and j+self.dx[_][1] < h:
+                        p = M[i+self.dx[_][0]][j+self.dx[_][1]]+e[i][j]
+                        if p < t:
+                            t = p
+                            dirt[i][j] = _
+                M[i][j] = t
         return M
 
     def carve_row(self, src):
         pt = time.time()
 
-        e = self.energy(src)
+        e = self._energy(src)
 
         nt = time.time()
         print(nt-pt, "s")
         pt = nt
 
-        # M = e.copy()
         w, h = e.shape
-        # dirt = np.zeros((w, h), dtype=np.int)
-        # for i in range(1, w):
-        #     for j in range(h):
-        #         t = float('inf')
-        #         for _ in range(3):
-        #             if i+self.dx[_][0] >= 0 and i+self.dx[_][0] < w and j+self.dx[_][1] >= 0 and j+self.dx[_][1] < h:
-        #                 p = M[i+self.dx[_][0]][j+self.dx[_][1]]+e[i][j]
-        #                 if p < t:
-        #                     t = p
-        #                     dirt[i][j] = _
-        #         M[i][j] = t
-        M=self.get_M_dirt(e)
+        M = self.get_M(e)
+        # print(M)
         pos = np.argmin(M[w-1])
         # print('pos', pos)
 
@@ -101,12 +102,13 @@ class SeamCarving:
 
         # print(dir)
         for i in reversed(range(w)):
+            # print('pos', pos)
             B[i][pos] = False
             if i == 0:
                 break
-            if pos-1 >= 0 and M[i-1][pos-1] == M[i][pos]-e[i][pos]:
+            if pos-1 >= 0 and (int)(M[i-1][pos-1]) == int(M[i][pos]-e[i][pos]):
                 pos = pos-1
-            elif pos+1 < h and M[i-1][pos+1] == M[i][pos]-e[i][pos]:
+            elif pos+1 < h and (int)(M[i-1][pos+1]) == int(M[i][pos]-e[i][pos]):
                 pos = pos+1
 
         B = np.stack([B]*3, axis=2)
@@ -184,15 +186,15 @@ if __name__ == "__main__":
 
     test = SeamCarving()
 
-    stat=time.time()
-    res = test.carve(img, 200, 'y')
-    print(time.time()-stat,"s")
-    
+    stat = time.time()
+    res = test.carve(img, 500, 'x')
+    print(time.time()-stat, "s")
+
     # res = test.carve(img, 10, 'y')
     print(res.shape)
     # cv2.imshow("res", res)
 
-    t = np.vstack([res, img])
+    t = np.hstack([res, img])
     print(t.shape)
     cv2.imshow("windows", t)
     cv2.waitKey(0)
