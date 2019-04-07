@@ -3,25 +3,25 @@ import cv2
 import numpy as np
 
 
+def get_dark(src, r=1):
+    t = np.min(src, axis=2)
+    w, h = t.shape
+    res = t.copy()
+    for i in range(r+1):
+        res[0:w-i, 0:h -
+            i] = np.min(np.stack([res[0:w-i, 0:h-i], t[i:w, i:h]], axis=2), axis=2)
+        res[i:w, i:h] = np.min(
+            np.stack([res[i:w, i:h], t[0:w-i, 0:h-i]], axis=2), axis=2)
+    return res
+
+
 def dehaze(src, size, w=0.95):
     img = np.array(src, dtype=np.float)
     print("img", img)
 
     A = np.max(img)
-    # A = 255
-    tmp = np.min(img, axis=2)
-
-    W = img.shape[0]
-    H = img.shape[1]
-    dark = tmp.copy()
-
-    for x in range(W):
-        for y in range(H):
-            for i in range(x-(int)(size/2), x+(int)(size/2)+1, 1):
-                for j in range(y-(int)(size/2), y+(int)(size/2)+1, 1):
-                    if i >= 0 and i < W and j >= 0 and j < H:
-                        dark[x][y] = min(dark[x][y], tmp[i][j])
-    print('dark', dark)
+    dark = get_dark(img, size//2)
+    print("dark", dark)
 
     t = 1 - w*dark/A
     t = np.where(t < 0.1, 0.1, t)
