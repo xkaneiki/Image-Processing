@@ -78,7 +78,7 @@ def exact(angle, c_size, k_size, bin=9, sigma=0.1):
 
 
 def normal(src, sigma):
-    v = src/np.sqrt(src.T*src+sigma*sigma)
+    v = src/np.sqrt(np.dot(src.T,src)+sigma*sigma)
     return v
 
 

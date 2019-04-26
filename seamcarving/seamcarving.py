@@ -187,7 +187,7 @@ if __name__ == "__main__":
     test = SeamCarving()
 
     stat = time.time()
-    res = test.carve(img, 500, 'x')
+    res = test.carve(img, 100, 'x')
     print(time.time()-stat, "s")
 
     # res = test.carve(img, 10, 'y')
@@ -197,5 +197,6 @@ if __name__ == "__main__":
     t = np.hstack([res, img])
     print(t.shape)
     cv2.imshow("windows", t)
+    
     cv2.waitKey(0)
     cv2.destroyAllWindows()

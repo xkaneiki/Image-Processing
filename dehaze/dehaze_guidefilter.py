@@ -36,7 +36,7 @@ def guidefilter(I, P, r, exps):
     return q
 
 
-def get_dark(src, r=1):
+def get_dark(src, exps,r=1):
     t = np.min(src, axis=2)
     w, h = t.shape
     v = t.copy()
@@ -45,12 +45,36 @@ def get_dark(src, r=1):
             i] = np.min(np.stack([v[0:w-i, 0:h-i], t[i:w, i:h]], axis=2), axis=2)
         v[i:w, i:h] = np.min(
             np.stack([v[i:w, i:h], t[0:w-i, 0:h-i]], axis=2), axis=2)
-    # res = guidefilter(t, v, r, 0.001)
-    return v
+    res = guidefilter(t, v, r, exps)
+    cv2.imshow("dark",np.hstack([v,res]).astype(np.uint8))
+    return res
 
 
+def get_v(src, exps,r=1):
+    t = np.min(src, axis=2)
+    w, h = t.shape
+    v = t.copy()
+    for i in range(r+1):
+        v[0:w-i, 0:h -
+            i] = np.min(np.stack([v[0:w-i, 0:h-i], t[i:w, i:h]], axis=2), axis=2)
+        v[i:w, i:h] = np.min(
+            np.stack([v[i:w, i:h], t[0:w-i, 0:h-i]], axis=2), axis=2)
+    res = guidefilter(t, v, r, exps)
+    # cv2.imshow("dark",np.hstack([v,res]).astype(np.uint8))
+    return res
 
-def dehaze(src, size, w=0.95):
+def get_A(src,dark):
+    bins = 2000
+    ht = np.histogram(dark, bins)                              
+    d = np.cumsum(ht[0])/float(dark.size)
+    for lmax in range(bins-1, 0, -1):
+        if d[lmax]<=0.999:
+            break
+    A  = np.mean(src,2)[dark>=ht[1][lmax]].max()
+    return A
+
+
+def dehaze(src, size, w=0.95,exps=0.001):
     img = np.array(src, dtype=np.float)
     print("img", img)
 
@@ -58,22 +82,21 @@ def dehaze(src, size, w=0.95):
     A1 = np.max(img[:, :, 1])
     A2 = np.max(img[:, :, 2])
 
-    dark = get_dark(img, size//2)
-    print("dark", dark)
+    # dark = get_dark(img, size//2)
+    # print("dark", dark)
 
-    g = togray(src)
-    # dark = guidefilter(dark, g.astype(np.float)/255.0, 3, 255*255*0.02)
-    # cv2.imshow("dark",dark.astype(np.uint8))
-    # A=np.max(dark)
     ia = img.copy()
     ia[:, :, 0] = ia[:, :, 0]/A0
     ia[:, :, 1] = ia[:, :, 1]/A1
     ia[:, :, 1] = ia[:, :, 2]/A2
 
-    # tmp=guidefilter(get_dark(ia,size//2),g,3,0.02)
-    tmp = get_dark(ia, size//2)
-    # tmp=guidefilter(tmp, g.astype(np.float)/255.0, 3, 255*255*0.02)
-    t = 1 - w*tmp
+    v=get_v(ia,exps,size//2)
+    # dark=get_dark(img, exps,size//2)
+    # cv2.imshow("dark",dark.astype(np.uint8))
+    # A=np.max(img)
+
+    # A=get_A(img,dark)
+    t = 1 - w*v
     t = np.where(t < 0.1, 0.1, t)
     print(t.shape)
     print("t", t)
@@ -88,8 +111,8 @@ def dehaze(src, size, w=0.95):
     return res
 
 
-img = cv2.imread("/Users/kaneiki/Desktop/Image_Processing/imgs/haze3.png")
-img_ans = dehaze(img, 3, 0.8)
+img = cv2.imread("/Users/kaneiki/Desktop/Image_Processing/imgs/haze2.png")
+img_ans = dehaze(img, 5, 0.8)
 
 show = np.hstack([img, img_ans])
 
